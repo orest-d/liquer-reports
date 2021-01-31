@@ -49,7 +49,7 @@ class FileResource(Resource):
         if link_type == LinkType.LINK:
             return self.url
         elif link_type == LinkType.DATAURL:
-            return dataurl(self.data, self.mime)
+            return dataurl(self.data, self.mimetype)
         raise Exception(f"Unsupported link type: {link_type}")
 
 class LinkResource(Resource):

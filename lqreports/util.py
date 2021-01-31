@@ -1,3 +1,5 @@
+import base64
+
 def dataurl(data, mime):
     if isinstance(data, str):
         data = data.encode("utf-8")

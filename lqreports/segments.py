@@ -122,9 +122,6 @@ class VuetifyMain(Segment):
   </div>
 """
 
-class VueScript(Segment):
-
-
 class VuetifyDocument(HtmlDocument):
     def __init__(self, register, title="Document"):
         super().__init__(register, title=title)
@@ -140,4 +137,4 @@ if __name__ == "__main__":
     doc = VuetifyDocument(r)
     r.main.add("<v-container>Hello world</v-container>")
     #doc.register.header.add_resource("vuetify_css")
-    print (doc.render(RenderContext()))
+    print (doc.render(RenderContext(link_type=LinkType.DATAURL)))
