@@ -22,4 +22,9 @@ vue_resource:
   filename: vue-resource.js
   url:      "https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"
   version:  "1.5.1"
+
+plotly:
+  filename: plotly.min.js
+  url:      "https://cdn.plot.ly/plotly-1.58.4.min.js"
+  version:  "1.58.4"
   
