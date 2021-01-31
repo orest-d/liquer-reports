@@ -23,8 +23,17 @@ vue_resource:
   url:      "https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"
   version:  "1.5.1"
 
+vue_router:
+  filename: vue-router.js
+  url:      "https://unpkg.com/vue-router@2.0.0/dist/vue-router.js"
+  version:  "2.0.0"
+
+aframe:
+  filename: aframe.min.js
+  url:      "https://aframe.io/releases/1.1.0/aframe.min.js"
+  version:  "1.1.0"
+  
 plotly:
   filename: plotly.min.js
   url:      "https://cdn.plot.ly/plotly-1.58.4.min.js"
   version:  "1.58.4"
-  
