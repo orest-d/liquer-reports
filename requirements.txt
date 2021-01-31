@@ -1,0 +1,6 @@
+liquer-framework>=0.4.4
+pandas>=1.2.0
+pytz>=2018.7
+xlsxwriter>=1.1.2
+requests>=1.25.8
+requests
