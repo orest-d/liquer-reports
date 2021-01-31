@@ -1,7 +1,8 @@
 from lqreports.constants import LinkType
 
 class RenderContext(object):
-    link_type = LinkType.LINK
+    def __init__(self, link_type=LinkType.LINK):
+        self.link_type = link_type
 
 class Register(dict):
     def __init__(self, *arg, **kwarg):
@@ -27,16 +28,25 @@ class Segment(Renderable):
     def __init__(self, name, register):
         assert not name.startswith("_")
         self.name = name
+        self.register=register
         self.entries=[]
-        
+        self.register[name]=self
+            
     def add(self, entry):
         self.entries.append(entry)
         if isinstance(entry, Segment):
             if entry.name in self.register:
-                raise Exception(f"Duplicate segment: {entry.name}")
+                if id(self.register[entry.name])!=id(entry):
+                    raise Exception(f"Duplicate segment: {entry.name}")
             else:
                 self.register[entry.name]=entry
         return self
+
+    def add_resource(self, resource):
+        import lqreports.resource as rs
+        if isinstance(resource, str):
+            resource = rs.FileResource(resource)
+        return self.add(ResourceHtmlLink(resource))
     
     def render(self, render_context=None):
         txt=str(self.prefix)
@@ -74,11 +84,60 @@ class HtmlHeader(Segment):
     def __init__(self, register):
         super().__init__("header", register)
         
-    def add_resource(self, resource):
-        import lqreports.resource as rs
-        if isinstance(resource, str):
-            resource = rs.FileResource(resource)
-        return self.add(ResourceHtmlLink(resource))
+
+class HtmlBody(Segment):
+    prefix = "  <body>\n"
+    suffix = "\n  </body>"
+    separator="\n"
+    def __init__(self, register):
+        super().__init__("body", register)
+
+class Scripts(Segment):
+    separator="\n"
+    def __init__(self, register):
+        super().__init__("scripts", register)
+
         
+class HtmlDocument(Segment):
+    prefix = "<html>\n"
+    suffix = "\n</html>"
+    separator="\n"
+    def __init__(self, register, title="Document"):
+        super().__init__("document", register)
+        self.add(HtmlHeader(register))
+        self.add(HtmlBody(register))
+        self.register.body.add(Segment("content",register))
+        self.register.body.add(Scripts(register))
+        self.title=title
+        self.register.header.add(f"<title>{title}</title>")
+
+class VuetifyMain(Segment):
+    prefix="""<div id="app">
+    <v-app>
+      <v-main>
+"""
+    suffix="""
+      </v-main>
+    </v-app>
+  </div>
+"""
+
+class VueScript(Segment):
+
+
+class VuetifyDocument(HtmlDocument):
+    def __init__(self, register, title="Document"):
+        super().__init__(register, title=title)
+        self.register.header.add_resource("materialdesignicons")
+        self.register.header.add_resource("vuetify_css")
+        self.register.content.add(VuetifyMain("main", register))
+        self.register.scripts.add_resource("vue")
+        self.register.scripts.add_resource("vue_resource")
+        self.register.scripts.add_resource("vuetify")
+
 if __name__ == "__main__":
-    print (HtmlHeader(Register()).add_resource("vuetify_css").render(RenderContext()))
+    r = Register()
+    doc = VuetifyDocument(r)
+    r.main.add("<v-container>Hello world</v-container>")
+    #doc.register.header.add_resource("vuetify_css")
+    print (doc.render(RenderContext()))
