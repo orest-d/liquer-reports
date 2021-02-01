@@ -1,5 +1,5 @@
 from pathlib import Path
-import yaml
+import json
 from lqreports.util import mimetype_from_extension, dataurl
 from lqreports.constants import LinkType
 
@@ -13,12 +13,12 @@ _resources_description = None
 def resources_description():
     global _resources_description
     if _resources_description is None:
-        with open(resources_path() / "resources.yaml") as f:
-            _resources_description = yaml.load(f, Loader=yaml.FullLoader)
+        with open(resources_path() / "resources.json") as f:
+            _resources_description = json.load(f)
     return _resources_description
 
 def load_resource(name):
-    return open(resources_path() / resources_description()[name]["filename"]).read()
+    return open(resources_path() / resources_description()[name]["filename"],"rb").read()
 
 class Resource(object):
     pass

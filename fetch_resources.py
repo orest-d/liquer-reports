@@ -1,4 +1,5 @@
 import yaml
+import json
 import requests
 from pathlib import Path
 
@@ -6,8 +7,10 @@ if __name__ == '__main__':
     path = Path("lqreports/resources")
     with open('resources.yaml') as f:
         resources = yaml.load(f, Loader=yaml.FullLoader)
-        with open(path/"resources.yaml","w") as rf:
-            yaml.dump(resources,rf)
+#        with open(path/"resources.yaml","w") as rf:
+#            yaml.dump(resources,rf)
+        with open(path/"resources.json","w") as rf:
+            json.dump(resources,rf)
         for key, entry in resources.items():
             print()
             print(key)

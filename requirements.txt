@@ -4,3 +4,4 @@ pytz>=2018.7
 xlsxwriter>=1.1.2
 requests>=1.25.8
 requests
+json
