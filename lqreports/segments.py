@@ -213,7 +213,11 @@ class VuetifyScript(Segment):
                 self.register.vue_data.add(f"        {name}: null")
             elif isinstance(value, str):
                 self.register.vue_data.add(f"        {name}: {repr(value)}")
-            elif isinstance(value, dict):
+            elif (
+                isinstance(value, dict)
+                or value in (True, False)
+                or isinstance(value, list)
+            ):
                 self.register.vue_data.add(f"        {name}: {json.dumps(value)}")
             else:
                 self.register.vue_data.add(f"        {name}: {value}")
@@ -262,7 +266,7 @@ class VuetifyDashboard(VuetifyDocument):
 
     def with_navigation_drawer(self):
         r = self.register
-        r.vuetify_script.add_data("app_drawer")
+        r.vuetify_script.add_data("app_drawer", False)
         r.app.add(
             Segment(
                 "navigation_drawer",
@@ -281,9 +285,15 @@ class VuetifyDashboard(VuetifyDocument):
             self.with_navigation_drawer()
         self.register.navigation_drawer.add(entry)
 
-    def drawer_item(self, title, icon=None, click=None, href=None, to=None):
-        if "navigation_drawer" not in self.register:
-            self.with_navigation_drawer()
+    def _item_attributes(self, arg):
+        icon = arg.get("icon")
+        click = arg.get("click")
+        href = arg.get("href")
+        to = arg.get("to")
+        color = arg.get("color")
+        style = arg.get("style")
+        attr = arg.get("attr")
+
         item_attributes = ""
         if click is not None:
             item_attributes += f""" @click="{click}" """
@@ -291,6 +301,38 @@ class VuetifyDashboard(VuetifyDocument):
             item_attributes += f""" href="{href}" """
         if to is not None:
             item_attributes += f""" to="{to}" """
+        if color is not None:
+            item_attributes += f""" color="{color}" """
+        if style is not None:
+            item_attributes += f""" style="{style}" """
+        if attr is not None:
+            item_attributes += f""" {attr} """
+        return item_attributes
+
+    def drawer_item(
+        self,
+        title,
+        icon=None,
+        click=None,
+        href=None,
+        to=None,
+        color=None,
+        style=None,
+        attr=None,
+    ):
+        if "navigation_drawer" not in self.register:
+            self.with_navigation_drawer()
+        item_attributes = self._item_attributes(
+            dict(
+                icon=icon,
+                click=click,
+                href=href,
+                to=to,
+                color=color,
+                style=style,
+                attr=attr,
+            )
+        )
 
         icon_code = (
             ""
@@ -306,21 +348,100 @@ class VuetifyDashboard(VuetifyDocument):
         self.register.navigation_drawer.add(text)
         return self
 
-    def with_app_bar(self, title=None):
+    def with_app_bar(self, title=None, color=None, attr=None, style=None):
         title = self.title if title is None else title
+        attributes = self._item_attributes(
+            dict(
+                color=color,
+                style=style,
+                attr=attr,
+            )
+        )
         r = self.register
         r.app.add(
             Segment(
                 "app_bar",
                 r,
                 prefix=f"""
-        <v-app-bar app>
+        <v-app-bar app {attributes}>
             <v-app-bar-nav-icon @click="app_drawer = !app_drawer"></v-app-bar-nav-icon>
-            <v-toolbar-title>{title}</v-toolbar-title>
+            <v-toolbar-title>{title} &nbsp;</v-toolbar-title>
 """,
                 suffix=f"</v-app-bar>\n",
             )
         )
+        return self
+
+    def add_bar_button(
+        self,
+        title,
+        icon=None,
+        click=None,
+        href=None,
+        to=None,
+        color=None,
+        style=None,
+        attr=None,
+    ):
+        if "app_bar" not in self.register:
+            self.with_app_bar()
+        item_attributes = self._item_attributes(
+            dict(
+                icon=icon,
+                click=click,
+                href=href,
+                to=to,
+                color=color,
+                style=style,
+                attr=attr,
+            )
+        )
+
+        icon_code = "" if icon is None else f"<v-icon>{icon}</v-icon>"
+        if title is None:
+            title = ""
+        text = f"""
+        <v-btn {item_attributes} {"" if icon is None else "icon"}>{icon_code}{title}</v-btn>
+        """
+        self.register.app_bar.add(text)
+        return self
+
+    def add_bar_menu(self, title, menu):
+        if "app_bar" not in self.register:
+            self.with_app_bar()
+        self.register.app_bar.add(
+            """
+        <v-menu offset-y>
+            <template v-slot:activator="{ on }">
+                <v-btn text v-on="on">%s</v-btn>
+            </template>
+            <v-list>\n"""
+            % title
+        )
+        for menu_item in menu:
+            title = menu_item.get("title")
+            icon = menu_item.get("icon")
+            item_attributes = self._item_attributes(menu_item)
+
+            icon_code = "" if icon is None else f"<v-icon>{icon}</v-icon>"
+            if title is None:
+                title = ""
+            text = f"""
+                <v-list-item {item_attributes}>
+                    <v-list-item-title>{title}</v-list-item-title>
+                </v-list-item>\n"""
+            self.register.app_bar.add(text)
+        self.register.app_bar.add(
+            """   
+            </v-list>
+        </v-menu>\n"""
+        )
+        return self
+
+    def add_bar_spacer(self):
+        if "app_bar" not in self.register:
+            self.with_app_bar()
+        self.register.app_bar.add("<v-spacer></v-spacer>")
         return self
 
     def with_plotly(self):
@@ -330,10 +451,31 @@ class VuetifyDashboard(VuetifyDocument):
 
 if __name__ == "__main__":
     r = Register()
-    doc = VuetifyDashboard(r).with_navigation_drawer().with_app_bar().with_plotly()
+    doc = VuetifyDashboard(r).with_navigation_drawer().with_app_bar(color="primary").with_plotly()
     doc.drawer_item("Hello", icon="mdi-home", click="this.alert('hello')")
     doc.drawer_item("Google href", href="http://google.com")
     doc.drawer_item("Google to", to="http://google.com")
+    doc.add_bar_button("Hello", click="this.alert('Hello')", color="primary")
+    doc.add_bar_menu(
+        "Second",
+        [
+            dict(
+                title="first",
+                icon="mdi-alert-box",
+                color="green",
+                click="this.alert('Hello1')",
+            ),
+            dict(
+                title="second",
+                icon="mdi-alert-circle",
+                color="secondary",
+                click="this.alert('Hello2')",
+            ),
+        ],
+    )
+    doc.add_bar_spacer()
+    doc.add_bar_button(None, icon="mdi-magnify", click="this.alert('magnify')")
+
     r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
     #    r.scripts.add(VuetifyScript(r))
     r.vuetify_script.add_data("to_greet", "WORLD")
