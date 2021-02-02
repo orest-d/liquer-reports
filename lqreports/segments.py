@@ -147,6 +147,17 @@ class VuetifyApp(Segment):
 """
 
 
+class VuetifyPanel(Segment):
+
+    def __init__(self, name, register, fluid=False):
+        super().__init__(
+            name=name,
+            register=register,
+            prefix = f"""<v-container {"fluid" if fluid else ""} v-if='visible_panel=="{name}"'>\n""",
+            suffix = """</v-container>\n"""
+        )
+
+
 class VuetifyScript(Segment):
     def __init__(self, register):
         super().__init__("vuetify_script", register)
@@ -254,6 +265,7 @@ class VuetifyDocument(HtmlDocument):
         self.register.header.add_resource("materialdesignicons")
         self.register.header.add_resource("vuetify_css")
         self.register.content.add(VuetifyApp("app", register))
+        self.register.app.add(Segment("v_main", register, prefix="<v-main>\n", suffix="</v-main>\n"))
         self.register.scripts.add_resource("vue")
         self.register.scripts.add_resource("vue_resource")
         self.register.scripts.add_resource("vuetify")
@@ -280,6 +292,23 @@ class VuetifyDashboard(VuetifyDocument):
         )
         return self
 
+    def with_panels(self):
+        r = self.register
+        r.app.add(Segment("panels", r))
+        r.vuetify_script.add_data("visible_panel", "home_panel")
+        r.vuetify_script.add_method(
+            "show_panel",
+            """function(panel){console.log("Show",panel);this.visible_panel=panel;}""",
+        )
+        self.panel("home_panel")
+        return self
+
+    def panel(self, name, fluid=False):
+        r = self.register
+        panel = VuetifyPanel(name, r, fluid=fluid)
+        r.v_main.add(panel)
+        return panel
+
     def add_drawer_item_raw(self, entry):
         if "navigation_drawer" not in self.register:
             self.with_navigation_drawer()
@@ -293,9 +322,14 @@ class VuetifyDashboard(VuetifyDocument):
         color = arg.get("color")
         style = arg.get("style")
         attr = arg.get("attr")
+        panel = arg.get("panel")
 
         item_attributes = ""
         if click is not None:
+            if panel is not None:
+                raise Exception(
+                    f"Using both click and panel at the same time is not supported."
+                )
             item_attributes += f""" @click="{click}" """
         if href is not None:
             item_attributes += f""" href="{href}" """
@@ -307,6 +341,13 @@ class VuetifyDashboard(VuetifyDocument):
             item_attributes += f""" style="{style}" """
         if attr is not None:
             item_attributes += f""" {attr} """
+        if panel is not None:
+            if "panels" not in self.register:
+                raise Exception(f"Panels not available, use .with_panels() method.")
+            if panel not in self.register:
+                raise Exception(f"Panel {panel} not available, use .panel() method.")
+            item_attributes += f""" @click="show_panel('{panel}')" """
+
         return item_attributes
 
     def drawer_item(
@@ -319,6 +360,7 @@ class VuetifyDashboard(VuetifyDocument):
         color=None,
         style=None,
         attr=None,
+        panel=None,
     ):
         if "navigation_drawer" not in self.register:
             self.with_navigation_drawer()
@@ -331,6 +373,7 @@ class VuetifyDashboard(VuetifyDocument):
                 color=color,
                 style=style,
                 attr=attr,
+                panel=panel
             )
         )
 
@@ -341,8 +384,8 @@ class VuetifyDashboard(VuetifyDocument):
         )
         text = f"""
         <v-list-item {item_attributes}>
-        {icon_code}
-        <v-list-item-title>{title}</v-list-item-title>
+            {icon_code}
+            <v-list-item-title>{title}</v-list-item-title>
         </v-list-item>
         """
         self.register.navigation_drawer.add(text)
@@ -382,6 +425,7 @@ class VuetifyDashboard(VuetifyDocument):
         color=None,
         style=None,
         attr=None,
+        panel=None,
     ):
         if "app_bar" not in self.register:
             self.with_app_bar()
@@ -394,6 +438,7 @@ class VuetifyDashboard(VuetifyDocument):
                 color=color,
                 style=style,
                 attr=attr,
+                panel=panel
             )
         )
 
@@ -451,32 +496,33 @@ class VuetifyDashboard(VuetifyDocument):
 
 if __name__ == "__main__":
     r = Register()
-    doc = VuetifyDashboard(r).with_navigation_drawer().with_app_bar(color="primary").with_plotly()
-    doc.drawer_item("Hello", icon="mdi-home", click="this.alert('hello')")
+    doc = (
+        VuetifyDashboard(r)
+        .with_navigation_drawer()
+        .with_app_bar(color="primary")
+        .with_plotly()
+        .with_panels()
+    )
+    r.home_panel.add("<h1>Home</h1>")
+    doc.panel("panel1", fluid=True).add("<v-row><v-col><h1>Panel 1</h1>Hello {{what}}!</v-col></v-row>")
+    doc.panel("panel2").add("<h1>Panel 2</h1>")
+    doc.drawer_item("Home", icon="mdi-home", panel="home_panel")
     doc.drawer_item("Google href", href="http://google.com")
     doc.drawer_item("Google to", to="http://google.com")
     doc.add_bar_button("Hello", click="this.alert('Hello')", color="primary")
     doc.add_bar_menu(
         "Second",
         [
-            dict(
-                title="first",
-                icon="mdi-alert-box",
-                color="green",
-                click="this.alert('Hello1')",
-            ),
-            dict(
-                title="second",
-                icon="mdi-alert-circle",
-                color="secondary",
-                click="this.alert('Hello2')",
-            ),
+            dict(title="first", click="this.alert('Hello1')"),
+            dict(title="second", click="this.alert('Hello2')"),
+            dict(title="Panel 1", panel="panel1"),
+            dict(title="Panel 2", panel="panel2"),
         ],
     )
     doc.add_bar_spacer()
     doc.add_bar_button(None, icon="mdi-magnify", click="this.alert('magnify')")
 
-    r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
+    #r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
     #    r.scripts.add(VuetifyScript(r))
     r.vuetify_script.add_data("to_greet", "WORLD")
     r.vuetify_script.add_computed(

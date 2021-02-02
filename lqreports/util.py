@@ -16,6 +16,7 @@ MIMETYPES = dict(
     txt="text/plain",
     html="text/html",
     htm="text/html",
+    css="text/css",
     md="text/markdown",
     xls="application/vnd.ms-excel",
     xlsx="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
