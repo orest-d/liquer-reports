@@ -496,7 +496,11 @@ class VuetifyDashboard(VuetifyDocument):
 
     def with_dataframe(self, df):
         r = self.register
-        r.vuetify_script.add_data("dataframe", df.to_json(orient="split"), raw=True)
+        script=r.vuetify_script
+        script.add_data("dataframe", df.to_json(orient="split"), raw=True)
+        script.add_computed("columns", "return this.dataframe.columns;")
+        script.add_computed("data", "return this.dataframe.data;")
+        
         return self
 
 
