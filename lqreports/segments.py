@@ -148,13 +148,12 @@ class VuetifyApp(Segment):
 
 
 class VuetifyPanel(Segment):
-
     def __init__(self, name, register, fluid=False):
         super().__init__(
             name=name,
             register=register,
-            prefix = f"""<v-container {"fluid" if fluid else ""} v-if='visible_panel=="{name}"'>\n""",
-            suffix = """</v-container>\n"""
+            prefix=f"""<v-container {"fluid" if fluid else ""} v-if='visible_panel=="{name}"'>\n""",
+            suffix="""</v-container>\n""",
         )
 
 
@@ -265,7 +264,9 @@ class VuetifyDocument(HtmlDocument):
         self.register.header.add_resource("materialdesignicons")
         self.register.header.add_resource("vuetify_css")
         self.register.content.add(VuetifyApp("app", register))
-        self.register.app.add(Segment("v_main", register, prefix="<v-main>\n", suffix="</v-main>\n"))
+        self.register.app.add(
+            Segment("v_main", register, prefix="<v-main>\n", suffix="</v-main>\n")
+        )
         self.register.scripts.add_resource("vue")
         self.register.scripts.add_resource("vue_resource")
         self.register.scripts.add_resource("vuetify")
@@ -373,7 +374,7 @@ class VuetifyDashboard(VuetifyDocument):
                 color=color,
                 style=style,
                 attr=attr,
-                panel=panel
+                panel=panel,
             )
         )
 
@@ -438,7 +439,7 @@ class VuetifyDashboard(VuetifyDocument):
                 color=color,
                 style=style,
                 attr=attr,
-                panel=panel
+                panel=panel,
             )
         )
 
@@ -493,6 +494,11 @@ class VuetifyDashboard(VuetifyDocument):
         self.register.scripts.add_resource("plotly")
         return self
 
+    def with_dataframe(self, df):
+        r = self.register
+        r.vuetify_script.add_data("dataframe", df.to_json(orient="split"), raw=True)
+        return self
+
 
 if __name__ == "__main__":
     r = Register()
@@ -504,7 +510,9 @@ if __name__ == "__main__":
         .with_panels()
     )
     r.home_panel.add("<h1>Home</h1>")
-    doc.panel("panel1", fluid=True).add("<v-row><v-col><h1>Panel 1</h1>Hello {{what}}!</v-col></v-row>")
+    doc.panel("panel1", fluid=True).add(
+        "<v-row><v-col><h1>Panel 1</h1>Hello {{what}}!</v-col></v-row>"
+    )
     doc.panel("panel2").add("<h1>Panel 2</h1>")
     doc.drawer_item("Home", icon="mdi-home", panel="home_panel")
     doc.drawer_item("Google href", href="http://google.com")
@@ -522,7 +530,7 @@ if __name__ == "__main__":
     doc.add_bar_spacer()
     doc.add_bar_button(None, icon="mdi-magnify", click="this.alert('magnify')")
 
-    #r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
+    # r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
     #    r.scripts.add(VuetifyScript(r))
     r.vuetify_script.add_data("to_greet", "WORLD")
     r.vuetify_script.add_computed(
