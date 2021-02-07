@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="liquer-reports",
-    version="0.0.3",
+    version="0.0.4",
     author="Orest Dubay",
     author_email="orest3.dubay@gmail.com",
     description="LiQuer-enabler library for creating reports and interactive dashboards",

@@ -1,7 +1,9 @@
 from lqreports.constants import LinkType
+from lqreports.util import dataurl, mimetype_from_extension
+from lqreports.resource import resources_path
 import pandas as pd
 import numpy as np
-
+from io import BytesIO
 
 class RenderContext(object):
     def __init__(self, link_type=LinkType.LINK):
@@ -250,6 +252,7 @@ class VuetifyPanel(Segment):
             attr+=f" hint='{hint}'"
         self.add(f"<v-text-field v-model='{model}' label='{label}' {attr}></v-text-field>")
         return self
+
     def textfield(self, model, label=None, value=None, hint=None, attr=""):
         if label is None:
             label = model
@@ -259,6 +262,29 @@ class VuetifyPanel(Segment):
             attr+=f" hint='{hint}'"
         self.add(f"<v-textarea v-model='{model}' label='{label}' {attr}></v-textarea>")
         return self
+
+    
+    def figure(self, fig, extension="svg", max_width=800, max_height=600):
+        assert extension in ("png", "svg", "pdf", "ps", "eps")
+        output = BytesIO()
+        fig.savefig(output, dpi=300, format=extension)
+        url = dataurl(output.getvalue(), mimetype_from_extension(extension))
+        html = f"""<v-img src="{url}" max-height="{max_height}" max-width="{max_width}"></v-img>"""
+        self.add(html)
+        return self
+
+    def image(self, path, max_width=800, max_height=600):
+        extension = path.split(".")[-1]
+        assert extension in ("png", "svg", "jpg", "jpeg", "gif")
+        data = open(path,"rb").read()
+        url = dataurl(data, mimetype_from_extension(extension))
+        html = f"""<v-img src="{url}" max-height="{max_height}" max-width="{max_width}"></v-img>"""
+        self.add(html)
+        return self
+    
+    def liquer_logo(self):
+        path = str(resources_path() / "liquer.png")
+        return self.image(path, max_width=500, max_height=707)
 
 class VuetifyScript(Segment):
     def __init__(self, register):
@@ -656,6 +682,7 @@ class VuetifyDashboard(VuetifyDocument):
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
     r = Register()
     doc = (
         VuetifyDashboard(r)
@@ -706,6 +733,9 @@ if __name__ == "__main__":
     r.panel1.add("""{{selected_row}}""")
     r.panel2.add("""<h2>Selected</h2>{{selected_row}}""")
     r.panel2.row_detail()
+    plt.plot([0,1],[0,1])
+    r.panel2.figure(plt.gcf())
+    r.panel1.liquer_logo()
 
     # r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
     #    r.scripts.add(VuetifyScript(r))
