@@ -1,4 +1,6 @@
 from lqreports.constants import LinkType
+import pandas as pd
+import numpy as np
 
 
 class RenderContext(object):
@@ -156,6 +158,107 @@ class VuetifyPanel(Segment):
             suffix="""</v-container>\n""",
         )
 
+    def dataframe_view(
+        self,
+        name="dataframe",
+        items_per_page=10,
+        attr='class="elevation-1"',
+        show_select=False,
+        single_select=True,
+        row_action_icon="mdi-eye"
+    ):
+        code = ""
+        if show_select:
+            code += f""" show-select single-select='{"true" if single_select else "false"}' """
+            code += """ v-model='selected' """
+        template_code = """
+        <template v-slot:item.0="{ item }">
+            <v-btn @click="row_action(item[0])" icon>
+                <v-icon>%s</v-icon>
+            </v-btn>
+        </template>
+        """%row_action_icon
+        self.add(
+            f"""
+        <v-card>
+            <v-card-title>
+            <v-text-field
+                v-model="search"
+                append-icon="mdi-magnify"
+                label="Search"
+                single-line
+                hide-details
+            ></v-text-field>
+            </v-card-title>
+            <v-data-table
+                %s
+                :headers="{name}_headers"
+                :items="{name}_data"
+                :items-per-page="{items_per_page}"
+                {attr}
+                :search="search"
+            >
+            {template_code}
+            </v-data-table>
+        </v-card>        
+        """
+            % code
+        )
+
+    def row_detail(self, title_index=1):
+        import html
+        #df = self.register.document.df
+        labels = self.register.document.labels
+        html = """
+        <v-card>
+          <v-card-title>{{selected_row[%d]}}</v-card-title>
+          <v-card-text>
+%s
+          </v-card-text>
+        </v-card>
+        """%(title_index, "\n".join(f"""
+            <v-row>
+              <v-col>{html.escape(label)}:</v-col>
+              <v-col>%s</v-col>
+            </v-row>
+        """%("{{selected_row[%d]}}"%i) for i, label in enumerate(labels) if i>0))
+        self.add(html)
+        return self
+
+    def switch(self, model, label=None, value=None):
+        if label is None:
+            label = model
+        if value is not None:
+            self.register.vuetify_script.add_data(model, value)
+        self.add(f"<v-switch v-model='{model}' label='{label}'></v-switch>")
+        return self
+
+    def checkbox(self, model, label=None, value=None):
+        if label is None:
+            label = model
+        if value is not None:
+            self.register.vuetify_script.add_data(model, value)
+        self.add(f"<v-checkbox v-model='{model}' label='{label}'></v-checkbox>")
+        return self
+
+    def textfield(self, model, label=None, value=None, hint=None, attr=""):
+        if label is None:
+            label = model
+        if value is not None:
+            self.register.vuetify_script.add_data(model, value)
+        if hint is not None:
+            attr+=f" hint='{hint}'"
+        self.add(f"<v-text-field v-model='{model}' label='{label}' {attr}></v-text-field>")
+        return self
+    def textfield(self, model, label=None, value=None, hint=None, attr=""):
+        if label is None:
+            label = model
+        if value is not None:
+            self.register.vuetify_script.add_data(model, value)
+        if hint is not None:
+            attr+=f" hint='{hint}'"
+        self.add(f"<v-textarea v-model='{model}' label='{label}' {attr}></v-textarea>")
+        return self
 
 class VuetifyScript(Segment):
     def __init__(self, register):
@@ -175,8 +278,7 @@ class VuetifyScript(Segment):
       data: {
 """
         )
-        vue_data = Segment("vue_data", r)
-        vue_data.separator = ",\n"
+        vue_data = Segment("vue_data", r, separator=",\n")
         self.add(vue_data)
         self.add(
             """
@@ -184,14 +286,14 @@ class VuetifyScript(Segment):
       methods: {
 """
         )
-        self.add(Segment("vue_methods", r))
+        self.add(Segment("vue_methods", r, separator=",\n"))
         self.add(
             """
       },
       computed: {
 """
         )
-        self.add(Segment("vue_computed", r))
+        self.add(Segment("vue_computed", r, separator=",\n"))
         self.add(
             """
       },
@@ -201,9 +303,16 @@ class VuetifyScript(Segment):
         self.add(Segment("vue_created", r))
         self.add(
             """
-      }
+      },
+      watch: {
 """
         )
+        self.add(Segment("vue_watch", r, separator=",\n"))
+        self.add(
+            """
+      }
+""")
+
         self.add(Segment("vue_other", r))
         self.add(
             """
@@ -251,6 +360,10 @@ class VuetifyScript(Segment):
                 + "}"
             )
         self.register.vue_computed.add(f"        {name}: {code}")
+        return self
+
+    def add_watch(self, name, function):
+        self.register.vue_watch.add(f"        {name}: {function}")
         return self
 
     def add_created(self, code):
@@ -494,14 +607,52 @@ class VuetifyDashboard(VuetifyDocument):
         self.register.scripts.add_resource("plotly")
         return self
 
-    def with_dataframe(self, df):
+    def with_dataframe(
+        self, df, name="dataframe", labels=None, with_rowid=True, rowid_column="rowid"
+    ):
+        if labels is None:
+            labels = list(df.columns)
+        if with_rowid:
+            assert rowid_column not in df.columns
+            columns = [rowid_column] + [c for c in df.columns]
+            df = df.copy()
+            df[rowid_column] = np.arange(len(df))
+            df = df[columns]
+            labels=["#"]+labels
+        self.df=df
+        self.labels=labels
         r = self.register
-        script=r.vuetify_script
-        script.add_data("dataframe", df.to_json(orient="split"), raw=True)
-        script.add_computed("columns", "return this.dataframe.columns;")
-        script.add_computed("data", "return this.dataframe.data;")
-        
+        script = r.vuetify_script
+        script.add_data(name, df.to_json(orient="split"), raw=True)
+        script.add_data("search", "")
+        script.add_data("selected", [])
+        script.add_data(f"{name}_data", [])
+        script.add_created(f"this.{name}_data=this.{name}.data;\n")
+        script.add_data(
+            f"{name}_headers",
+            [
+                dict(text=label, value=str(i), sortable=True)
+                for i, label in enumerate(labels)
+            ],
+        )
         return self
+
+    def with_row_action(self, code):
+        r = self.register
+        script = r.vuetify_script
+        script.add_method("row_action","function(rowid){%s}"%code)
+        return self
+
+    def with_panel_row_action(self, panel_name):
+        r = self.register
+        script = r.vuetify_script
+        script.add_data("selected_rowid")
+        script.add_data("selected_row", [])
+        return self.with_row_action(f"""
+        this.selected_rowid=rowid;
+        this.selected_row=this.dataframe.data[rowid];
+        this.show_panel('{panel_name}');
+        """)
 
 
 if __name__ == "__main__":
@@ -533,6 +684,28 @@ if __name__ == "__main__":
     )
     doc.add_bar_spacer()
     doc.add_bar_button(None, icon="mdi-magnify", click="this.alert('magnify')")
+    #    doc.with_dataframe(pd.DataFrame(dict(a=[1,2,3],b=[4,5,6])))
+    doc.with_dataframe(pd.read_csv("test.csv")).with_panel_row_action("panel2")
+    #r.vuetify_script.add_data("myfilter",False)
+    r.vuetify_script.add_method("update_filter", """
+    function(){
+        console.log("Update filter",this.myfilter);
+        if (this.myfilter){
+            this.dataframe_data = this.dataframe.data.filter(function(x){
+                return ((x[1]>2000) && (x[1]<2005)); 
+            });
+        }
+        else{
+            this.dataframe_data = this.dataframe.data;
+        }
+    }
+    """)
+    r.vuetify_script.add_watch("myfilter", "function(new_value,old_value){console.log('watch',new_value,old_value);this.update_filter();}")
+    r.panel1.switch("myfilter","My filter", value=False)
+    r.panel1.dataframe_view()
+    r.panel1.add("""{{selected_row}}""")
+    r.panel2.add("""<h2>Selected</h2>{{selected_row}}""")
+    r.panel2.row_detail()
 
     # r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
     #    r.scripts.add(VuetifyScript(r))

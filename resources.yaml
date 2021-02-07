@@ -35,5 +35,6 @@ aframe:
   
 plotly:
   filename: plotly.min.js
-  url:      "https://cdn.plot.ly/plotly-1.58.4.min.js"
+  #url:      "https://cdn.plot.ly/plotly-1.58.4.min.js"
+  url:      "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/1.58.4/plotly.js"
   version:  "1.58.4"
