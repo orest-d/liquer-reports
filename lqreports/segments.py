@@ -286,6 +286,83 @@ class VuetifyPanel(Segment):
         path = str(resources_path() / "liquer.png")
         return self.image(path, max_width=500, max_height=707)
 
+    def chart(self, model, value=None, attr=""):
+        self.add(f"""<plotly-chart :chart="{model}" {attr}></plotly-chart>""")
+        if value is not None:
+            self.register.vuetify_script.add_data(model, value)
+        return self
+
+    def _item_attributes(self, arg):
+        icon = arg.get("icon")
+        click = arg.get("click")
+        href = arg.get("href")
+        to = arg.get("to")
+        color = arg.get("color")
+        style = arg.get("style")
+        attr = arg.get("attr")
+        panel = arg.get("panel")
+
+        item_attributes = ""
+        if click is not None:
+            if panel is not None:
+                raise Exception(
+                    f"Using both click and panel at the same time is not supported."
+                )
+            item_attributes += f""" @click="{click}" """
+        if href is not None:
+            item_attributes += f""" href="{href}" """
+        if to is not None:
+            item_attributes += f""" to="{to}" """
+        if color is not None:
+            item_attributes += f""" color="{color}" """
+        if style is not None:
+            item_attributes += f""" style="{style}" """
+        if attr is not None:
+            item_attributes += f""" {attr} """
+        if panel is not None:
+            if "panels" not in self.register:
+                raise Exception(f"Panels not available, use .with_panels() method.")
+            if panel not in self.register:
+                raise Exception(f"Panel {panel} not available, use .panel() method.")
+            item_attributes += f""" @click="show_panel('{panel}')" """
+
+        return item_attributes
+
+    def button(
+        self,
+        title,
+        icon=None,
+        click=None,
+        href=None,
+        to=None,
+        color=None,
+        style=None,
+        attr=None,
+        panel=None,
+    ):
+        item_attributes = self._item_attributes(
+            dict(
+                icon=icon,
+                click=click,
+                href=href,
+                to=to,
+                color=color,
+                style=style,
+                attr=attr,
+                panel=panel,
+            )
+        )
+
+        icon_code = "" if icon is None else f"<v-icon>{icon}</v-icon>"
+        if title is None:
+            title = ""
+        text = f"""
+        <v-btn {item_attributes} {"" if icon is None else "icon"}>{icon_code}{title}</v-btn>
+        """
+        self.add(text)
+        return self
+
+
 class VuetifyScript(Segment):
     def __init__(self, register):
         super().__init__("vuetify_script", register)
@@ -630,7 +707,30 @@ class VuetifyDashboard(VuetifyDocument):
         return self
 
     def with_plotly(self):
-        self.register.scripts.add_resource("plotly")
+        r=self.register
+        r.scripts.add_resource("plotly")
+        r.init_vue.add("""
+Vue.component("plotly-chart", {
+  props: ["chart"],
+  template: '<div :ref="chart.uuid"></div>',
+  mounted() {
+    Plotly.plot(this.$refs[this.chart.uuid], this.chart.traces, this.chart.layout);
+  },
+  watch: {
+    chart: {
+      handler: function() {
+        Plotly.react(
+          this.$refs[this.chart.uuid],
+          this.chart.traces,
+          this.chart.layout,
+          this.chart.config
+        );
+      },
+      deep: true
+    }
+  }
+});        
+        """)
         return self
 
     def with_dataframe(
@@ -696,6 +796,21 @@ if __name__ == "__main__":
         "<v-row><v-col><h1>Panel 1</h1>Hello {{what}}!</v-col></v-row>"
     )
     doc.panel("panel2").add("<h1>Panel 2</h1>")
+    doc.panel("panel3").add("""<plotly-chart :chart="chart1" style="min-height:800px;"></plotly-chart>""")
+    doc.panel("panel4").chart("chart2", value=dict(
+        uuid= "12345",
+        traces= [dict(y=[1,2,3], line=dict(color="blue", width=5, shape="line"))],
+        layout= dict(title='Chart 2', xaxis=dict(title="X Axis"), yaxis=dict(title="Y Axis")),
+        config= dict()
+    ))
+    r.vuetify_script.add_method("update_chart2", """
+    function(){
+        this.chart2.traces[0].x=[1,2,3,4];
+        this.chart2.traces[0].y=[10,2,30,4];
+    }
+    """)
+    r.panel4.button("Update chart 2", click="update_chart2()")
+
     doc.drawer_item("Home", icon="mdi-home", panel="home_panel")
     doc.drawer_item("Google href", href="http://google.com")
     doc.drawer_item("Google to", to="http://google.com")
@@ -707,6 +822,8 @@ if __name__ == "__main__":
             dict(title="second", click="this.alert('Hello2')"),
             dict(title="Panel 1", panel="panel1"),
             dict(title="Panel 2", panel="panel2"),
+            dict(title="Panel 3 (chart 1)", panel="panel3"),
+            dict(title="Panel 4 (chart 2)", panel="panel4"),
         ],
     )
     doc.add_bar_spacer()
@@ -740,6 +857,32 @@ if __name__ == "__main__":
     # r.app.add("<v-main><v-container>Hello {{what}}!</v-container></v-main>")
     #    r.scripts.add(VuetifyScript(r))
     r.vuetify_script.add_data("to_greet", "WORLD")
+    r.vuetify_script.add_data("chart1", dict(
+        uuid= "1234",
+        traces= [
+          {
+            "y": [0,1,2],
+            "line": {
+              "color": "#000000",
+              "width": 4,
+              "shape": "line"
+            }
+          }
+        ],
+        layout={
+          "title":'Chart 1',
+          "xaxis": {
+            "title": 'xaxis title'
+          },
+          "yaxis": {
+            "title": 'yaxis title'
+          }
+        },
+        config={
+            "responsive":True
+        }
+    ))
+
     r.vuetify_script.add_computed(
         "what", "return '*'+this.to_greet+'*';", "this.to_greet=value;"
     )
