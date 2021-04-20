@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 
+
 class RenderContext(object):
     def __init__(self, link_type=LinkType.LINK):
         self.link_type = link_type
@@ -35,7 +36,8 @@ class Segment(Renderable):
     separator = ""
 
     def __init__(self, name, register, prefix=None, suffix=None, separator=None):
-        assert not name.startswith("_")
+        if name.startswith("_"):
+            raise ValueError(f"Segment name is not allowed to start with underscore: {name}")
         self.name = name
         self.register = register
         self.entries = []
@@ -167,19 +169,22 @@ class VuetifyPanel(Segment):
         attr='class="elevation-1"',
         show_select=False,
         single_select=True,
-        row_action_icon="mdi-eye"
+        row_action_icon="mdi-eye",
     ):
         code = ""
         if show_select:
             code += f""" show-select single-select='{"true" if single_select else "false"}' """
             code += """ v-model='selected' """
-        template_code = """
+        template_code = (
+            """
         <template v-slot:item.0="{ item }">
             <v-btn @click="row_action(item[0])" icon>
                 <v-icon>%s</v-icon>
             </v-btn>
         </template>
-        """%row_action_icon
+        """
+            % row_action_icon
+        )
         self.add(
             f"""
         <v-card>
@@ -209,7 +214,8 @@ class VuetifyPanel(Segment):
 
     def row_detail(self, title_index=1):
         import html
-        #df = self.register.document.df
+
+        # df = self.register.document.df
         labels = self.register.document.labels
         html = """
         <v-card>
@@ -218,12 +224,20 @@ class VuetifyPanel(Segment):
 %s
           </v-card-text>
         </v-card>
-        """%(title_index, "\n".join(f"""
+        """ % (
+            title_index,
+            "\n".join(
+                f"""
             <v-row>
               <v-col>{html.escape(label)}:</v-col>
               <v-col>%s</v-col>
             </v-row>
-        """%("{{selected_row[%d]}}"%i) for i, label in enumerate(labels) if i>0))
+        """
+                % ("{{selected_row[%d]}}" % i)
+                for i, label in enumerate(labels)
+                if i > 0
+            ),
+        )
         self.add(html)
         return self
 
@@ -249,8 +263,10 @@ class VuetifyPanel(Segment):
         if value is not None:
             self.register.vuetify_script.add_data(model, value)
         if hint is not None:
-            attr+=f" hint='{hint}'"
-        self.add(f"<v-text-field v-model='{model}' label='{label}' {attr}></v-text-field>")
+            attr += f" hint='{hint}'"
+        self.add(
+            f"<v-text-field v-model='{model}' label='{label}' {attr}></v-text-field>"
+        )
         return self
 
     def textfield(self, model, label=None, value=None, hint=None, attr=""):
@@ -259,11 +275,10 @@ class VuetifyPanel(Segment):
         if value is not None:
             self.register.vuetify_script.add_data(model, value)
         if hint is not None:
-            attr+=f" hint='{hint}'"
+            attr += f" hint='{hint}'"
         self.add(f"<v-textarea v-model='{model}' label='{label}' {attr}></v-textarea>")
         return self
 
-    
     def figure(self, fig, extension="svg", max_width=800, max_height=600):
         assert extension in ("png", "svg", "pdf", "ps", "eps")
         output = BytesIO()
@@ -276,12 +291,12 @@ class VuetifyPanel(Segment):
     def image(self, path, max_width=800, max_height=600):
         extension = path.split(".")[-1]
         assert extension in ("png", "svg", "jpg", "jpeg", "gif")
-        data = open(path,"rb").read()
+        data = open(path, "rb").read()
         url = dataurl(data, mimetype_from_extension(extension))
         html = f"""<v-img src="{url}" max-height="{max_height}" max-width="{max_width}"></v-img>"""
         self.add(html)
         return self
-    
+
     def liquer_logo(self):
         path = str(resources_path() / "liquer.png")
         return self.image(path, max_width=500, max_height=707)
@@ -363,12 +378,59 @@ class VuetifyPanel(Segment):
         return self
 
 
+class VuetifyComponent(Segment):
+    def __init__(self, name, register):
+        super().__init__(
+            name,
+            register,
+            prefix="""Vue.component("%s", {\n""" % name,
+            suffix="""\n});\n""",
+        )
+        self.component_name = name
+        r = self.register
+        self.add("  data: function() {\n")
+        self.add("    return {\n")
+        self.data_segment = Segment(f"{name}__data", r, separator=",\n") 
+        self.add(self.data_segment)
+        self.add("\n    };\n},\n")
+        self.add("  template: '")
+        self.template_segment = Segment(f"{name}__template", r)
+        self.add(self.template_segment)
+        self.add("'\n")
+
+    def add_data(self, name, value=None, raw=False):
+        import json
+
+        data_segment = self.data_segment
+        if raw:
+            data_segment.add(f"        {name}: {value}")
+        else:
+            if value is None:
+                data_segment.add(f"        {name}: null")
+            elif isinstance(value, str):
+                data_segment.add(f"        {name}: {repr(value)}")
+            elif (
+                isinstance(value, dict)
+                or value in (True, False)
+                or isinstance(value, list)
+            ):
+                data_segment.add(f"        {name}: {json.dumps(value)}")
+            else:
+                data_segment.add(f"        {name}: {value}")
+        return self
+
+    def add_template(self, text):
+        self.template_segment.add(text.replace("\n", "\\n"))
+        return self
+
+
 class VuetifyScript(Segment):
     def __init__(self, register):
         super().__init__("vuetify_script", register)
         r = self.register
         self.add("    <script>\n")
         self.add(Segment("init_vue", r))
+        self.add(Segment("vue_components", r))
         self.add(
             """
     new Vue({
@@ -414,7 +476,8 @@ class VuetifyScript(Segment):
         self.add(
             """
       }
-""")
+"""
+        )
 
         self.add(Segment("vue_other", r))
         self.add(
@@ -472,6 +535,11 @@ class VuetifyScript(Segment):
     def add_created(self, code):
         self.register.vue_created.add(code)
         return self
+
+    def component(self, name):
+        c = VuetifyComponent(name, self.register)
+        self.register.vue_components.add(c, self.register)
+        return c
 
 
 class VuetifyDocument(HtmlDocument):
@@ -707,9 +775,10 @@ class VuetifyDashboard(VuetifyDocument):
         return self
 
     def with_plotly(self):
-        r=self.register
+        r = self.register
         r.scripts.add_resource("plotly")
-        r.init_vue.add("""
+        r.init_vue.add(
+            """
 Vue.component("plotly-chart", {
   props: ["chart"],
   template: '<div :ref="chart.uuid"></div>',
@@ -730,7 +799,8 @@ Vue.component("plotly-chart", {
     }
   }
 });        
-        """)
+        """
+        )
         return self
 
     def with_dataframe(
@@ -744,9 +814,9 @@ Vue.component("plotly-chart", {
             df = df.copy()
             df[rowid_column] = np.arange(len(df))
             df = df[columns]
-            labels=["#"]+labels
-        self.df=df
-        self.labels=labels
+            labels = ["#"] + labels
+        self.df = df
+        self.labels = labels
         r = self.register
         script = r.vuetify_script
         script.add_data(name, df.to_json(orient="split"), raw=True)
@@ -766,7 +836,7 @@ Vue.component("plotly-chart", {
     def with_row_action(self, code):
         r = self.register
         script = r.vuetify_script
-        script.add_method("row_action","function(rowid){%s}"%code)
+        script.add_method("row_action", "function(rowid){%s}" % code)
         return self
 
     def with_panel_row_action(self, panel_name):
@@ -774,9 +844,10 @@ Vue.component("plotly-chart", {
         script = r.vuetify_script
         script.add_data("selected_rowid")
         script.add_data("selected_row", [])
-        return self.with_row_action(f"""
+        return self.with_row_action(
+            f"""
         this.selected_rowid=rowid;
         this.selected_row=this.dataframe.data[rowid];
         this.show_panel('{panel_name}');
-        """)
-
+        """
+        )

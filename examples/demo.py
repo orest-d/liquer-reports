@@ -4,7 +4,7 @@ sys.path.append("..")
 import matplotlib.pyplot as plt
 from lqreports.segments import *
 
-if __name__ == '__main':
+if __name__ == '__main__':
     r = Register()
     doc = (
         VuetifyDashboard(r)
