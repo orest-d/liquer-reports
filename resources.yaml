@@ -1,37 +1,37 @@
 vuetify:
   filename: "vuetify.js"
-  url:      "https://cdn.jsdelivr.net/npm/vuetify@2.4.3/dist/vuetify.js"
-  version:  "2.4.3"
+  url:      "https://cdn.jsdelivr.net/npm/vuetify@2.6.2/dist/vuetify.js"
+  version:  "2.6.2"
 
 vuetify_css:
   filename: vuetify.min.css
-  url:      "https://cdn.jsdelivr.net/npm/vuetify@2.4.3/dist/vuetify.min.css"
-  version:  "2.4.3"
+  url:      "https://cdn.jsdelivr.net/npm/vuetify@2.6.2/dist/vuetify.min.css"
+  version:  "2.6.2"
 
 materialdesignicons:
   filename: materialdesignicons.min.css
-  url:      "https://cdn.jsdelivr.net/npm/@mdi/font@4.9.95/css/materialdesignicons.min.css"
-  version:  "4.9.95"
+  url:      "https://cdn.jsdelivr.net/npm/@mdi/font@6.5.95/css/materialdesignicons.min.css"
+  version:  "6.5.95"
 
 vue:
   filename: vue.js
-  url:      "https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"
-  version:  "2.6.12"
+  url:      "https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"
+  version:  "2.6.14"
 
 vue_resource:
   filename: vue-resource.js
-  url:      "https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"
-  version:  "1.5.1"
+  url:      "https://cdn.jsdelivr.net/npm/vue-resource@1.5.3"
+  version:  "1.5.3"
 
 vue_router:
   filename: vue-router.js
-  url:      "https://unpkg.com/vue-router@2.0.0/dist/vue-router.js"
-  version:  "2.0.0"
+  url:      "https://unpkg.com/vue-router@3.5.3/dist/vue-router.js"
+  version:  "3.5.3"
 
 aframe:
   filename: aframe.min.js
-  url:      "https://aframe.io/releases/1.1.0/aframe.min.js"
-  version:  "1.1.0"
+  url:      "https://aframe.io/releases/1.2.0/aframe.min.js"
+  version:  "1.2.0"
   
 plotly:
   filename: plotly.min.js
